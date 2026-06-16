@@ -15,19 +15,19 @@ You must have at least 3 tools. The three required tools are listed — add any 
 ### Tool 1: search_listings
 
 **What it does:**
-<!-- Describe what this tool does in 1–2 sentences -->
+Searches the listings database for items matching the user's description, size, and price constraints. Returns a ranked list of matching listings, or an empty list if no items match.
 
 **Input parameters:**
 <!-- List each parameter, its type, and what it represents -->
-- `description` (str): ...
-- `size` (str): ...
-- `max_price` (float): ...
+- `description` (str): The type/style of item the user is looking for (e.g., "vintage graphic tee")
+- `size` (str | None): The desired size (e.g., "M", "L") or `None` to search all sizes
+- `max_price` (float): Maximum price in dollars; only return items at or below this price
 
 **What it returns:**
-<!-- Describe the return value — what fields does a result contain? -->
+A list of listing dictionaries sorted by relevance. Each dict contains: `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, `platform`. Returns an empty list `[]` if no listings match the filters.
 
 **What happens if it fails or returns nothing:**
-<!-- What should the agent do if no listings match? -->
+Returns an empty list `[]`. The planning loop detects this and tells the user no listings matched, suggests adjusting criteria, and stops without calling suggest_outfit or create_fit_card.
 
 ---
 
