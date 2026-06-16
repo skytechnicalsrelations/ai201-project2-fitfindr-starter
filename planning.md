@@ -298,14 +298,54 @@ Write out what a full user interaction looks like from start to finish — tool 
 
 **Example user query:** "I'm looking for a vintage graphic tee under $30. I mostly wear baggy jeans and chunky sneakers. What's out there and how would I style it?"
 
-**Step 1:**
-<!-- What does the agent do first? Which tool is called? With what input? -->
+**Step 1: Parse Query**
+- **Tool called:** `parse_query()`
+- **Input:** User's full query string
+- **Why this tool:** Extract structured search parameters (description, size, max_price) from natural language
+- **Output:** 
+```python
+{
+    "description": "vintage graphic tee",
+    "size": None,  # user didn't specify size
+    "max_price": 30.0
+}
+```
+- **Session update:** `session["parsed"]` = the dict above
 
-**Step 2:**
-<!-- What happens next? What was returned from step 1? What tool is called now? -->
+**Step 2: Search Listings**
+- **Tool called:** `search_listings()`
+- **Input:** `description="vintage graphic tee"`, `size=None`, `max_price=30.0`
+- **Why this tool:** Find all listings matching the user's criteria
+- **Output:** List of 3 matching listings (e.g., "Faded Band Tee — $22, Depop, Good condition", "Vintage Nirvana Tee — $28, Thrift+, Fair condition", "Distressed Tour Tee — $19.99, Poshmark, Good condition"), sorted by relevance
+- **Session update:** `session["search_results"]` = list of 3 dicts; `session["selected_item"]` = first result (the band tee at $22)
 
-**Step 3:**
-<!-- Continue until the full interaction is complete -->
+**Step 3: Suggest Outfit**
+- **Tool called:** `suggest_outfit()`
+- **Input:** `new_item` = the band tee listing dict, `wardrobe` = user's wardrobe (from data_loader with items like jeans, sneakers, etc.)
+- **Why this tool:** Generate styling suggestions pairing the new item with existing wardrobe pieces
+- **Output:** 
+```
+"Pair this faded band tee with your wide-leg baggy jeans and chunky platform sneakers 
+for an authentic 90s grunge look. Roll the sleeves once and tuck the front corner 
+slightly for shape. The oversized fit + cropped silhouette works perfectly with your style."
+```
+- **Session update:** `session["outfit_suggestion"]` = the string above
+
+**Step 4: Create Fit Card**
+- **Tool called:** `create_fit_card()`
+- **Input:** `outfit` = the outfit suggestion string from Step 3, `new_item` = the band tee listing dict
+- **Why this tool:** Generate a casual, shareable social media caption for the complete look
+- **Output:**
+```
+"thrifted this faded band tee off depop for $22 and honestly it was made for my 
+wide-legs 🖤 rolled the sleeves and it's perfect grunge energy. full look in my stories"
+```
+- **Session update:** `session["fit_card"]` = the string above; `session["error"]` = None (no errors)
 
 **Final output to user:**
-<!-- What does the user actually see at the end? -->
+The agent presents three panels:
+1. **Item found:** "Faded Band Tee — $22, Depop, Good condition"
+2. **Outfit suggestion:** "Pair this faded band tee with your wide-leg baggy jeans and chunky platform sneakers for an authentic 90s grunge look..."
+3. **Fit card (social caption):** "thrifted this faded band tee off depop for $22 and honestly it was made for my wide-legs 🖤..."
+
+User sees a complete outfit recommendation with styling advice and a ready-to-post caption.
