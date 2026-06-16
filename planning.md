@@ -272,7 +272,23 @@ For each tool, describe the specific failure mode you're handling and what the a
 
 **Milestone 3 — Individual tool implementations:**
 
+For each tool, I will use Claude to generate the function implementation:
+
+1. **search_listings**: Give Claude the Tool 1 spec block (what it does, inputs, return value, failure handling). Ask it to implement using `load_listings()` from `utils/data_loader.py`. Verify by checking: (a) filters by all three parameters (description, size, max_price), (b) handles empty results by returning `[]` not raising exception, (c) scores and sorts by relevance. Test with 3 queries: one that matches many items, one that matches few, one that matches none.
+
+2. **suggest_outfit**: Give Claude the Tool 2 spec, the Groq API setup pattern (client initialization, model name), and instruction to use `_get_groq_client()` from tools.py. Verify: (a) LLM call succeeds, (b) returns non-empty string, (c) handles empty wardrobe gracefully (returns general advice, not crash), (d) output is specific to the new_item and wardrobe contents. Test with both example and empty wardrobe.
+
+3. **create_fit_card**: Give Claude the Tool 3 spec and note that temperature should be higher for variability. Verify: (a) guards against empty outfit input, (b) returns error message string (not exception), (c) outputs vary across multiple calls, (d) caption sounds casual and mentions item/price/platform. Test by running 3 times on same input and confirming variation.
+
 **Milestone 4 — Planning loop and state management:**
+
+I will use Claude to implement `run_agent()` in agent.py:
+
+1. **Input**: Give Claude the Planning Loop section (all 8 steps), the State Management section (session dict structure and data flow), and the Architecture diagram. Also provide the error handling table.
+
+2. **Expected output**: A complete implementation of `run_agent()` that: (a) calls each tool in sequence according to the planning loop, (b) stores results in session dict, (c) checks for empty/error results after each step, (d) terminates early and sets `session["error"]` on failures, (d) returns the session dict at the end.
+
+3. **Verification**: (a) Test the happy path with the example query in the file — confirm all three tools are called and final session has all fields populated. (b) Test the no-results path (already in __main__) — confirm agent stops after search_listings and returns error message. (c) Verify state passing by printing session after each step and confirming selected_item flows into suggest_outfit unchanged, outfit_suggestion flows into create_fit_card unchanged.
 
 ---
 
