@@ -67,6 +67,29 @@ If outfit input is empty or missing, returns a descriptive error message string 
 
 ---
 
+### Tool 4: parse_query
+
+**What it does:**
+Uses the LLM to extract structured search parameters from the user's natural language query. Parses the description (item type/style), desired size, and maximum price from free-form text.
+
+**Input parameters:**
+- `user_query` (str): The user's full request as a natural language string
+
+**What it returns:**
+A dict with three keys:
+```python
+{
+    "description": "vintage graphic tee",
+    "size": "M" or None,
+    "max_price": 30.0 or None
+}
+```
+
+**What happens if it fails or returns nothing:**
+If the LLM cannot parse the query or returns invalid data, the agent loop terminates and asks the user to clarify their request. The user must provide: what item they're looking for, desired size (if any), and maximum price (if any). No further tools are called until the user provides valid input. 
+
+---
+
 ### Additional Tools (if any)
 
 <!-- Copy the block above for any tools beyond the required three -->
@@ -76,7 +99,28 @@ If outfit input is empty or missing, returns a descriptive error message string 
 ## Planning Loop
 
 **How does your agent decide which tool to call next?**
-<!-- Describe the logic your planning loop uses. What does it look at? What conditions change its behavior? How does it know when it's done? -->
+
+1. **Call parse_query** — Use the LLM to extract `description`, `size`, and `max_price` from the user's natural language input. If parsing fails or returns invalid data:
+   - Return error message asking user to clarify: "I couldn't understand your request. Please tell me: what item are you looking for, what size (if any), and what's your max budget (if any)?"
+   - Stop. Do not call search_listings or any other tools.
+
+2. **Call search_listings** — Pass the parsed parameters to search for matching items.
+
+3. **Check search results** — If `results == []`:
+   - Return error message: "No listings matched your criteria. Try adjusting the price, size, or description."
+   - Stop. Do not call suggest_outfit or create_fit_card.
+
+4. **Select top result** — If `results` is non-empty, select `selected_item = results[0]` and store in session.
+
+5. **Call suggest_outfit** — Pass `selected_item` and user's `wardrobe` to get outfit suggestion.
+
+6. **Check outfit suggestion** — If `outfit_suggestion` is empty or an error:
+   - Return error message to user.
+   - Stop. Do not call create_fit_card.
+
+7. **Call create_fit_card** — Pass `outfit_suggestion` and `selected_item` to generate the social media caption.
+
+8. **Return complete response** — Construct final output combining: item details, outfit suggestion, and fit card caption.
 
 ---
 
