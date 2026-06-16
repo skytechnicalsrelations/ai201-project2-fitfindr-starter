@@ -127,7 +127,35 @@ If the LLM cannot parse the query or returns invalid data, the agent loop termin
 ## State Management
 
 **How does information from one tool get passed to the next?**
-<!-- Describe how your agent stores and accesses state within a session. What data is tracked? How is it passed between tool calls? -->
+
+The agent maintains a `session` dict that persists throughout a single user interaction:
+
+```python
+session = {
+    "query": "I'm looking for...",                 # Original user input
+    "wardrobe": {...},                             # User's wardrobe dict (stored for access throughout)
+    "parsed": {                                    # Output from parse_query
+        "description": "vintage graphic tee",
+        "size": "M" or None,
+        "max_price": 30.0 or None
+    },
+    "search_results": [],                          # Output from search_listings (list of dicts)
+    "selected_item": {...} or None,                # First result from search_results (used in suggest_outfit and create_fit_card)
+    "outfit_suggestion": "Pair this with..." or None,  # Output from suggest_outfit
+    "fit_card": "Caption text..." or None,        # Output from create_fit_card
+    "error": None or "..."                         # Error message if any step fails
+}
+```
+
+**Data flow:**
+- **parse_query → search_listings:** `parsed` dict (description, size, max_price) becomes the input to search_listings
+- **search_listings → suggest_outfit:** `selected_item` (first result from search_results) is passed to suggest_outfit along with `session["wardrobe"]`
+- **suggest_outfit → create_fit_card:** `outfit_suggestion` is passed to create_fit_card along with `selected_item`
+- **All outputs** are stored in the session dict; the final response is constructed in app.py by combining these fields
+
+**Error handling:** If any step fails, the `error` field is set to a descriptive message and subsequent steps are skipped. The session is returned early without calling remaining tools.
+
+
 
 ---
 
@@ -137,24 +165,95 @@ For each tool, describe the specific failure mode you're handling and what the a
 
 | Tool | Failure mode | Agent response |
 |------|-------------|----------------|
-| search_listings | No results match the query | |
-| suggest_outfit | Wardrobe is empty | |
-| create_fit_card | Outfit input is missing or incomplete | |
+| parse_query | Cannot parse query or returns invalid data | Ask user to clarify: what item, size, and max price. Stop and wait for clarification. |
+| search_listings | No results match the query | Tell user no listings matched. Suggest adjusting price, size, or description. Stop. |
+| suggest_outfit | Wardrobe is empty | Return general styling advice (tool handles this gracefully). |
+| create_fit_card | Outfit input is missing or incomplete | Return error message. Tell user fit card could not be generated. |
 
 ---
 
 ## Architecture
 
-<!-- Draw a diagram of your agent showing how the components connect:
-     User input → Planning Loop → Tools (search_listings, suggest_outfit, create_fit_card)
-                                                                          ↕
-                                                                   State / Session
-     Show what triggers each tool, how state flows between them, and where error paths branch off.
-     Use ASCII art or a Mermaid diagram (https://mermaid.js.org/syntax/flowchart.html).
-     Do NOT embed an image — graders need to read your diagram directly in the file;
-     an embedded image or screenshot cannot be evaluated.
-     You'll share this diagram with an AI tool when asking it to implement
-     the planning loop and each individual tool. -->
+```
+                              User Query
+                                  │
+                                  ▼
+                        ┌─────────────────────┐
+                        │  Planning Loop      │
+                        │  (agent.py)         │
+                        └─────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+            ┌──────────────────┐         ┌──────────────────┐
+            │  parse_query()   │         │  Session Dict    │
+            │  (tools.py)      │         │  ────────────────│
+            └──────────────────┘         │ • query          │
+                    │                    │ • wardrobe       │
+                    │ parsed =           │ • parsed         │
+                    │ {desc,size,price}  │ • search_results │
+                    │                    │ • selected_item  │
+            ┌───────┴─────────┐          │ • outfit_sugges. │
+            │                 │          │ • fit_card       │
+     [Parse fails]      [Parse OK]       │ • error          │
+       │                  │              └──────────────────┘
+       │                  │                       ▲
+       ▼                  ▼                       │
+    Error msg       search_listings()            │
+     Return │         (tools.py)                 │ stores
+            │              │                     │ results
+            │              ▼                     │
+            │        results = [...]             │
+            │              │                     │
+            │         ┌─────┴─────┐              │
+            │         │           │              │
+            │    [Empty]      [Items found]      │
+            │      │               │             │
+            │      ▼               ▼             │
+            │   Error msg    selected_item = ───┼─ results[0]
+            │   Return │         │               │
+            │          │         │               │
+            │          │         ▼               │
+            │          │    suggest_outfit() ────┼─ (selected_item, wardrobe)
+            │          │         │               │
+            │          │         ▼               │
+            │          │    outfit_suggestion ──┼─ (string)
+            │          │         │               │
+            │          │         ▼               │
+            │          │    create_fit_card() ──┼─ (outfit, selected_item)
+            │          │         │               │
+            │          │         ▼               │
+            │          │    fit_card (string) ──┼─ (string)
+            │          │         │               │
+            └──────────┴─────────┤               │
+                        │        │               │
+                        ▼        ▼               │
+                   ┌─────────────────┐           │
+                   │ Format Response │◄──────────┘
+                   │ (error or full  │
+                   │ outfit details) │
+                   └─────────────────┘
+                        │
+                        ▼
+                   Return to User
+                   • Item details
+                   • Outfit suggestion
+                   • Social caption
+                   (OR error message)
+```
+
+**Data flow:**
+- **User query** → Planning loop parses it with `parse_query()`
+- **Parsed parameters** → `search_listings()` uses them to find matches
+- **Search results** → Top item selected and stored in session
+- **Selected item + wardrobe** → `suggest_outfit()` creates styling advice
+- **Outfit suggestion + item** → `create_fit_card()` generates caption
+- **All session data** → Formatted into final response to user
+
+**Error branches:**
+- If `parse_query` fails → return clarification request, stop
+- If `search_listings` returns empty → return "no matches" message, stop
+- If any tool produces error → return error message, skip remaining tools
 
 ---
 

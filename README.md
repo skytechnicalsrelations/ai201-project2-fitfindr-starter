@@ -100,8 +100,7 @@ Your README submission must document each tool's name, inputs, and return value.
 
 ## Error Handling and Fail Points
 
-<!-- For each tool, describe the specific failure mode and what your agent does in response.
-     This maps to the error handling section of the rubric (F5-C1). -->
+Every tool is designed to handle its failure mode gracefully—no silent failures or crashes. Instead of raising exceptions, tools return error messages or sensible defaults, and the agent communicates clearly with the user.
 
 | Tool | Failure mode | Agent response |
 |------|-------------|----------------|
@@ -118,6 +117,19 @@ Your README submission must document each tool's name, inputs, and return value.
 **One way planning.md helped during implementation:**
 
 **One divergence from your spec, and why:**
+
+---
+
+## Limitations and Future Enhancements
+
+**Session Scope:** Each call to `run_agent()` creates a fresh, independent session. This means:
+- **No multi-turn conversations:** If a user asks "Show me a jacket instead," FitFindr starts with a completely new session and has no memory of the previous "vintage tee" search. Each query is treated as a standalone interaction.
+- **No persistent user state:** Wardrobe and search history are not persisted across sessions. Every interaction loads a fresh wardrobe and results.
+
+This is by design for this project (stateless, independent queries), but a production version could add:
+- User authentication and session IDs
+- Database persistence of wardrobe and search history
+- Multi-turn conversation context where follow-up queries reference previous results
 
 ---
 
