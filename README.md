@@ -104,9 +104,10 @@ Every tool is designed to handle its failure mode gracefully—no silent failure
 
 | Tool | Failure mode | Agent response |
 |------|-------------|----------------|
-| `search_listings` | | |
-| `suggest_outfit` | | |
-| `create_fit_card` | | |
+| `parse_query` | Cannot parse user's natural language request into structured parameters | Agent asks user to clarify: "I couldn't understand your request. Please tell me: what item are you looking for, what size (if any), and what's your max budget (if any)?" Agent stops and waits for clarification—does not proceed to search. |
+| `search_listings` | No listings match the user's criteria (returns empty list `[]`) | Agent tells user: "No listings matched your criteria. Try adjusting the price, size, or description." Agent stops without calling suggest_outfit or create_fit_card. |
+| `suggest_outfit` | Wardrobe is empty | Tool handles gracefully by returning general styling advice (e.g., "This pairs well with oversized jackets for a relaxed vibe") instead of crashing. Agent proceeds normally with this general advice. |
+| `create_fit_card` | Outfit input is missing or empty | Tool returns a descriptive error message string (not a Python exception). Agent detects this and tells user: "Could not generate a fit card. Please try again with a complete outfit suggestion." |
 
 ---
 
