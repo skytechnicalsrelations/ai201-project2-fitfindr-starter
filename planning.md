@@ -34,36 +34,36 @@ Returns an empty list `[]`. The planning loop detects this and tells the user no
 ### Tool 2: suggest_outfit
 
 **What it does:**
-<!-- Describe what this tool does in 1–2 sentences -->
+Takes a new thrifted item and the user's existing wardrobe, then suggests 1–2 complete outfit combinations by pairing the new item with specific pieces from their wardrobe. If the wardrobe is empty, provides general styling advice for the item. 
 
 **Input parameters:**
 <!-- List each parameter, its type, and what it represents -->
-- `new_item` (dict): ...
-- `wardrobe` (dict): ...
+- `new_item` (dict): A listing dict from `search_listings` with fields like `title`, `style_tags`, `colors`, `brand`, `condition`, `price`
+- `wardrobe` (dict): The user's wardrobe dict with an `items` key containing a list of wardrobe item dicts; may be empty
 
 **What it returns:**
-<!-- Describe the return value -->
+A non-empty string with 1–2 outfit suggestions. Each suggestion pairs the new item with specific wardrobe pieces and includes styling tips. If the wardrobe is empty, returns general styling advice (from LLM training) for the item instead of specific wardrobe pairings.
 
 **What happens if it fails or returns nothing:**
-<!-- What should the agent do if the wardrobe is empty or no outfit can be suggested? -->
+The tool is designed to handle empty wardrobe gracefully by returning general styling advice. Always returns a non-empty string. If the tool fails or returns empty (unexpected), the agent should treat this as an error and inform the user.
 
 ---
 
 ### Tool 3: create_fit_card
 
 **What it does:**
-<!-- Describe what this tool does in 1–2 sentences -->
+Generates a short, shareable social media caption (tweet/Instagram post style) for the thrifted item and outfit. The caption mentions the item name, price, and platform naturally while capturing the outfit vibe.
 
 **Input parameters:**
 <!-- List each parameter, its type, and what it represents -->
-- `outfit` (str): ...
-- `new_item` (dict): ...
+- `outfit` (str): The outfit suggestion string from `suggest_outfit` describing how to style the new item
+- `new_item` (dict): A listing dict from `search_listings` with fields like `title`, `price`, `platform`, `condition`
 
 **What it returns:**
-<!-- Describe the return value -->
+A 2–4 sentence string usable as a social media caption. Sounds casual and authentic (like a real OOTD post), mentions the item, price, and platform naturally, and captures the outfit vibe in specific terms. Outputs may vary (using higher LLM temperature for creativity).
 
 **What happens if it fails or returns nothing:**
-<!-- What should the agent do if the outfit data is incomplete? -->
+If outfit input is empty or missing, returns a descriptive error message string (not a Python exception). The agent detects this error string and informs the user that the fit card could not be generated.
 
 ---
 
