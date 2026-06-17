@@ -18,10 +18,10 @@ Usage (once implemented):
     print(result["error"])   # None on success
 """
 
-from tools import search_listings, suggest_outfit, create_fit_card
-
+from tools import create_fit_card, parse_query, search_listings, suggest_outfit
 
 # ── session state ─────────────────────────────────────────────────────────────
+
 
 def _new_session(query: str, wardrobe: dict) -> dict:
     """
@@ -34,18 +34,19 @@ def _new_session(query: str, wardrobe: dict) -> dict:
     You may add fields to this dict as needed for your implementation.
     """
     return {
-        "query": query,              # original user query
-        "parsed": {},                # extracted description / size / max_price
-        "search_results": [],        # list of matching listing dicts
-        "selected_item": None,       # top result, passed into suggest_outfit
-        "wardrobe": wardrobe,        # user's wardrobe dict
-        "outfit_suggestion": None,   # string returned by suggest_outfit
-        "fit_card": None,            # string returned by create_fit_card
-        "error": None,               # set if the interaction ended early
+        "query": query,  # original user query
+        "parsed": {},  # extracted description / size / max_price
+        "search_results": [],  # list of matching listing dicts
+        "selected_item": None,  # top result, passed into suggest_outfit
+        "wardrobe": wardrobe,  # user's wardrobe dict
+        "outfit_suggestion": None,  # string returned by suggest_outfit
+        "fit_card": None,  # string returned by create_fit_card
+        "error": None,  # set if the interaction ended early
     }
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
+
 
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
@@ -102,16 +103,66 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     - Use parse_query() from tools.py (not regex/string splitting)
     - See the error handling table in planning.md for all failure modes
     """
-    # TODO: implement the planning loop
     session = _new_session(query, wardrobe)
-    session["error"] = "Planning loop not yet implemented."
+
+    # Step 2: Parse the query to extract description, size, max_price
+    session["parsed"] = parse_query(query)
+    if "error" in session["parsed"]:
+        session["error"] = session["parsed"]["error"]
+        return session
+
+    # Step 3: Search listings using parsed parameters
+    session["search_results"] = search_listings(
+        description=session["parsed"]["description"],
+        size=session["parsed"]["size"],
+        max_price=session["parsed"]["max_price"],
+    )
+    if (
+        isinstance(session["search_results"], dict)
+        and "error" in session["search_results"]
+    ):
+        session["error"] = session["search_results"]["error"]
+        return session
+
+    # Check if search returned empty results
+    if session["search_results"] == []:
+        session["error"] = (
+            "No listings matched your criteria. Try adjusting the price, size, or description."
+        )
+        return session
+
+    # Step 4: Select the top result
+    session["selected_item"] = session["search_results"][0]
+
+    # Step 5: Get outfit suggestions
+    session["outfit_suggestion"] = suggest_outfit(
+        new_item=session["selected_item"],
+        wardrobe=session["wardrobe"],
+    )
+    if (
+        isinstance(session["outfit_suggestion"], dict)
+        and "error" in session["outfit_suggestion"]
+    ):
+        session["error"] = session["outfit_suggestion"]["error"]
+        return session
+
+    # Step 6: Generate the fit card caption
+    session["fit_card"] = create_fit_card(
+        outfit=session["outfit_suggestion"],
+        new_item=session["selected_item"],
+    )
+    if isinstance(session["fit_card"], dict) and "error" in session["fit_card"]:
+        session["error"] = session["fit_card"]["error"]
+        return session
+
+    # Step 7: Return completed session (error is None on success)
     return session
 
 
 # ── CLI test ──────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    from utils.data_loader import get_example_wardrobe, get_empty_wardrobe
+    from utils.data_loader import get_empty_wardrobe, get_example_wardrobe
 
     print("=== Happy path: graphic tee ===\n")
     session = run_agent(
