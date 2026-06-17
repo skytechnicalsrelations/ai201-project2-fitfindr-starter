@@ -32,8 +32,8 @@ class TestSuggestOutfitSuccess:
         """Test outfit suggestion with an empty wardrobe."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Here are some outfit ideas for this piece...")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Here are some outfit ideas for this piece..."))]
         )
 
         result = suggest_outfit(sample_listing, empty_wardrobe)
@@ -47,8 +47,8 @@ class TestSuggestOutfitSuccess:
         """Test outfit suggestion with existing wardrobe items."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Outfit 1: Pair this with your baggy jeans and black denim jacket...")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Outfit 1: Pair this with your baggy jeans and black denim jacket..."))]
         )
 
         result = suggest_outfit(sample_listing, example_wardrobe)
@@ -62,8 +62,8 @@ class TestSuggestOutfitSuccess:
         """Test that suggest_outfit returns a string on success."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Styling suggestion here")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Styling suggestion here"))]
         )
 
         result = suggest_outfit(sample_listing, example_wardrobe)
@@ -75,8 +75,8 @@ class TestSuggestOutfitSuccess:
         """Test that the returned string is non-empty."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Great outfit idea")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Great outfit idea"))]
         )
 
         result = suggest_outfit(sample_listing, example_wardrobe)
@@ -87,8 +87,8 @@ class TestSuggestOutfitSuccess:
         """Test that the suggestion mentions the new item being considered."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="This item pairs beautifully with your wardrobe pieces to create a cohesive look.")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="This item pairs beautifully with your wardrobe pieces to create a cohesive look."))]
         )
 
         result = suggest_outfit(sample_listing, example_wardrobe)
@@ -101,8 +101,8 @@ class TestSuggestOutfitSuccess:
         """Test suggest_outfit with multiple different items."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Outfit suggestion")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Outfit suggestion"))]
         )
 
         listings = load_listings()
@@ -118,8 +118,8 @@ class TestSuggestOutfitSuccess:
         """Test that empty wardrobe returns general styling advice."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="To build outfits around this piece, you'll want to add several versatile basics and layering pieces.")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="To build outfits around this piece, you'll want to add several versatile basics and layering pieces."))]
         )
 
         result = suggest_outfit(sample_listing, empty_wardrobe)
@@ -133,8 +133,8 @@ class TestSuggestOutfitSuccess:
         """Test that the function uses wardrobe information in suggestions."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Pair with your Baggy straight-leg jeans and Black combat boots")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Pair with your Baggy straight-leg jeans and Black combat boots"))]
         )
 
         listings = load_listings()
@@ -153,8 +153,8 @@ class TestSuggestOutfitSuccess:
         """Test suggest_outfit with an item that has None brand."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Nice outfit suggestion")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Nice outfit suggestion"))]
         )
 
         listings = load_listings()
@@ -185,7 +185,7 @@ class TestSuggestOutfitFailure:
         """Test that suggest_outfit returns error dict when LLM call fails."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.side_effect = RuntimeError("API connection failed")
+        mock_client.chat.completions.create.side_effect = RuntimeError("API connection failed")
 
         result = suggest_outfit(sample_listing, example_wardrobe)
 
@@ -200,7 +200,7 @@ class TestSuggestOutfitFailure:
         """Test that error dict contains a descriptive error message."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.side_effect = ValueError("Invalid response format")
+        mock_client.chat.completions.create.side_effect = ValueError("Invalid response format")
 
         result = suggest_outfit(sample_listing, example_wardrobe)
 

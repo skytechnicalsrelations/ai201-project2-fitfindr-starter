@@ -30,8 +30,8 @@ class TestParseQueryHappyPath:
             "size": "M",
             "max_price": 30.0,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("I'm looking for a vintage graphic tee in size M under $30")
@@ -51,8 +51,8 @@ class TestParseQueryHappyPath:
             "size": None,
             "max_price": 75.0,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("I want a denim jacket for under 75 dollars")
@@ -72,8 +72,8 @@ class TestParseQueryHappyPath:
             "size": "US 10",
             "max_price": None,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("Looking for black sneakers in US size 10")
@@ -93,8 +93,8 @@ class TestParseQueryHappyPath:
             "size": None,
             "max_price": None,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("Show me vintage band tees")
@@ -118,8 +118,8 @@ class TestParseQueryEdgeCases:
             "size": None,
             "max_price": None,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("xyz meaningless text")
@@ -143,8 +143,8 @@ class TestParseQueryEdgeCases:
             "max_price": 100.0
         }
         """
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=response_text)]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=response_text))]
         )
 
         result = parse_query("vintage leather jacket, large, under 100")
@@ -164,8 +164,8 @@ class TestParseQueryErrors:
         mock_get_client.return_value = mock_client
 
         # Return invalid JSON
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="not valid json")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="not valid json"))]
         )
 
         result = parse_query("some query")
@@ -181,8 +181,8 @@ class TestParseQueryErrors:
 
         # Return JSON without required keys
         response_dict = {"unexpected_key": "value"}
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("some query")
@@ -199,8 +199,8 @@ class TestParseQueryErrors:
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        # Return response with empty content list
-        mock_client.messages.create.return_value = MagicMock(content=[])
+        # Return response with empty choices list
+        mock_client.chat.completions.create.return_value = MagicMock(choices=[])
 
         result = parse_query("some query")
 
@@ -229,8 +229,8 @@ class TestParseQueryIntegration:
             "size": "XL",
             "max_price": 50.0,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query("Looking for an oversized hoodie XL under $50")
@@ -250,8 +250,8 @@ class TestParseQueryIntegration:
             "size": "W30",
             "max_price": 45.0,
         }
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text=json.dumps(response_dict))]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
         )
 
         result = parse_query(
@@ -282,8 +282,8 @@ class TestParseQueryIntegration:
                 "size": size,
                 "max_price": None,
             }
-            mock_client.messages.create.return_value = MagicMock(
-                content=[MagicMock(text=json.dumps(response_dict))]
+            mock_client.chat.completions.create.return_value = MagicMock(
+                choices=[MagicMock(message=MagicMock(content=json.dumps(response_dict)))]
             )
 
             result = parse_query(query)

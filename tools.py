@@ -81,13 +81,13 @@ def parse_query(user_query: str) -> dict:
     )
 
     try:
-        response = client.messages.create(
+        response = client.chat.completions.create(
             model="mixtral-8x7b-32768",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=100,
         )
 
-        response_text = response.content[0].text.strip()
+        response_text = response.choices[0].message.content.strip()
         parsed = json.loads(response_text)
 
         return {
@@ -250,12 +250,12 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str | dict:
         )
 
     try:
-        response = client.messages.create(
-            model="mixtral-8x7b-32768",
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=500,
         )
-        return response.content[0].text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return {"error": f"Failed to generate outfit suggestions: {str(e)}"}
 
@@ -316,12 +316,12 @@ def create_fit_card(outfit: str | dict, new_item: dict) -> str | dict:
     )
 
     try:
-        response = client.messages.create(
-            model="mixtral-8x7b-32768",
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=150,
             temperature=0.9,
         )
-        return response.content[0].text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         return {"error": f"Failed to generate caption: {str(e)}"}

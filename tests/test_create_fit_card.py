@@ -27,8 +27,8 @@ class TestCreateFitCardSuccess:
         """Test that create_fit_card returns a string on success."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Just grabbed these vintage levi's and I'm obsessed. Paired with my fave boots and sweatshirt, this is THE fit for lazy girl era.")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Just grabbed these vintage levi's and I'm obsessed. Paired with my fave boots and sweatshirt, this is THE fit for lazy girl era."))]
         )
 
         result = create_fit_card(sample_outfit, sample_listing)
@@ -41,8 +41,8 @@ class TestCreateFitCardSuccess:
         """Test that the returned caption is non-empty."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Great caption here")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Great caption here"))]
         )
 
         result = create_fit_card(sample_outfit, sample_listing)
@@ -54,8 +54,8 @@ class TestCreateFitCardSuccess:
         """Test that the caption mentions the item."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Found this amazing vintage tee on depop for $18. Styling it with my favorite pieces.")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Found this amazing vintage tee on depop for $18. Styling it with my favorite pieces."))]
         )
 
         result = create_fit_card(sample_outfit, sample_listing)
@@ -68,8 +68,8 @@ class TestCreateFitCardSuccess:
         """Test create_fit_card with multiple different items."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Great caption")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Great caption"))]
         )
 
         listings = load_listings()
@@ -85,14 +85,14 @@ class TestCreateFitCardSuccess:
         """Test that create_fit_card uses higher temperature for variety."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.return_value = MagicMock(
-            content=[MagicMock(text="Caption")]
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Caption"))]
         )
 
         create_fit_card(sample_outfit, sample_listing)
 
         # Verify that temperature 0.9 was passed
-        args, kwargs = mock_client.messages.create.call_args
+        args, kwargs = mock_client.chat.completions.create.call_args
         assert kwargs.get("temperature") == 0.9
 
 
@@ -138,7 +138,7 @@ class TestCreateFitCardFailure:
         """Test that create_fit_card returns error dict when LLM call fails."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.side_effect = RuntimeError("API connection failed")
+        mock_client.chat.completions.create.side_effect = RuntimeError("API connection failed")
 
         outfit = "Some outfit suggestion"
         result = create_fit_card(outfit, sample_listing)
@@ -153,7 +153,7 @@ class TestCreateFitCardFailure:
         """Test that error dict contains a descriptive error message."""
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        mock_client.messages.create.side_effect = ValueError("Invalid response")
+        mock_client.chat.completions.create.side_effect = ValueError("Invalid response")
 
         outfit = "Some outfit"
         result = create_fit_card(outfit, sample_listing)
