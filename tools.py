@@ -12,6 +12,7 @@ Tools:
     create_fit_card(outfit, new_item)               → str
 """
 
+import json
 import os
 
 from dotenv import load_dotenv
@@ -24,6 +25,7 @@ load_dotenv()
 
 # ── Groq client ───────────────────────────────────────────────────────────────
 
+
 def _get_groq_client():
     """Initialize and return a Groq client using GROQ_API_KEY from .env."""
     api_key = os.environ.get("GROQ_API_KEY")
@@ -34,7 +36,67 @@ def _get_groq_client():
     return Groq(api_key=api_key)
 
 
+# ── Tool 4: parse_query ───────────────────────────────────────────────────────
+
+
+def parse_query(user_query: str) -> dict:
+    """
+    Extract structured search parameters from natural language user input.
+
+    Args:
+        user_query: The user's request as a natural language string
+                    (e.g., "I'm looking for a vintage graphic tee under $30 in size M")
+
+    Returns:
+        A dict with three keys:
+        {
+            "description": "vintage graphic tee" or None,
+            "size": "M" or None,
+            "max_price": 30.0 or None
+        }
+        All three values may be None if not specified in the query.
+
+    If the LLM cannot parse the query or returns invalid data, returns a dict
+    with an "error" key containing an error message string.
+    """
+    client = _get_groq_client()
+
+    prompt = f"""Extract the following information from the user's query:
+1. description: What item or style are they looking for? (e.g., "vintage graphic tee")
+2. size: What size if specified? (e.g., "M", "L", "US 8", or None if not mentioned)
+3. max_price: What's the maximum price if specified? (e.g., 30.0, 50.0, or None if not mentioned)
+
+User query: "{user_query}"
+
+Respond with ONLY a JSON object (no markdown, no extra text):
+{{"description": "...", "size": "..." or null, "max_price": ... or null}}
+
+If the description is not clear, set description to null.
+Only include numeric values for max_price (no "$" symbols)."""
+
+    try:
+        response = client.messages.create(
+            model="mixtral-8x7b-32768",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=100,
+        )
+
+        response_text = response.content[0].text.strip()
+        parsed = json.loads(response_text)
+
+        return {
+            "description": parsed.get("description"),
+            "size": parsed.get("size"),
+            "max_price": parsed.get("max_price"),
+        }
+    except (json.JSONDecodeError, KeyError, IndexError) as e:
+        return {
+            "error": f"Failed to parse query: {str(e)}. Please clarify: what item are you looking for, what size (if any), and what's your max budget (if any)?"
+        }
+
+
 # ── Tool 1: search_listings ───────────────────────────────────────────────────
+
 
 def search_listings(
     description: str,
@@ -75,6 +137,7 @@ def search_listings(
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
 
+
 def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     """
     Given a thrifted item and the user's wardrobe, suggest 1–2 complete outfits.
@@ -105,6 +168,7 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
+
 
 def create_fit_card(outfit: str, new_item: dict) -> str:
     """
