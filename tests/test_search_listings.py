@@ -1,6 +1,9 @@
 """Tests for search_listings tool"""
 
+from unittest.mock import patch
+
 import pytest
+
 from tools import search_listings
 
 
@@ -112,3 +115,31 @@ class TestSearchListings:
                 f"{item.get('brand', '')} {item['category']}"
             ).lower()
             assert "denim" in search_text
+
+
+class TestSearchListingsFailure:
+    """Test suite for search_listings error handling."""
+
+    @patch("tools.load_listings")
+    def test_search_listings_returns_error_dict_on_exception(self, mock_load):
+        """Test that search_listings returns error dict when loading fails."""
+        mock_load.side_effect = RuntimeError("Failed to load listings file")
+
+        result = search_listings("vintage tee")
+
+        # Should return a dict with "error" key on failure
+        assert isinstance(result, dict)
+        assert "error" in result
+        assert isinstance(result["error"], str)
+        assert "Failed to search listings" in result["error"]
+
+    @patch("tools.load_listings")
+    def test_search_listings_error_dict_has_descriptive_message(self, mock_load):
+        """Test that error dict contains a descriptive error message."""
+        mock_load.side_effect = FileNotFoundError("Listings file not found")
+
+        result = search_listings("shirt")
+
+        assert isinstance(result, dict)
+        assert "error" in result
+        assert len(result["error"]) > 0
