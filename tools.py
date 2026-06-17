@@ -62,7 +62,7 @@ def parse_query(user_query: str) -> dict:
     client = _get_groq_client()
 
     prompt = f"""Extract the following information from the user's query:
-1. description: Short concise sets of keywords of what item or style are they looking for? (e.g., "vintage graphic tee")
+1. description: Short concise sets of single space separated keywords of what item or style are they looking for? (e.g., "vintage graphic tee")
 2. size: What size if specified? (e.g., "M", "L", "US 8", or None if not mentioned)
 3. max_price: What's the maximum price if specified? (e.g., 30.0, 50.0, or None if not mentioned)
 
@@ -131,8 +131,45 @@ def search_listings(
 
     Before writing code, fill in the Tool 1 section of planning.md.
     """
-    # Replace this with your implementation
-    return []
+    # Step 1: Load all listings
+    listings = load_listings()
+
+    # Step 2: Filter by max_price (if provided)
+    if max_price is not None:
+        listings = [item for item in listings if item["price"] <= max_price]
+
+    # Step 3: Filter by size (if provided, case-insensitive)
+    if size is not None:
+        size_lower = size.lower()
+        listings = [item for item in listings if size_lower in item["size"].lower()]
+
+    # Step 4: Score listings by keyword overlap with description
+    keywords = description.lower().split()
+
+    scored_listings = []
+    for item in listings:
+        score = 0
+
+        # Search text: title, description, style_tags, colors, brand, category
+        search_text = (
+            f"{item['title']} {item['description']} "
+            f"{' '.join(item['style_tags'])} "
+            f"{' '.join(item['colors'])} "
+            f"{item.get('brand', '')} {item['category']}"
+        ).lower()
+
+        # Count keyword matches
+        for keyword in keywords:
+            if keyword in search_text:
+                score += 1
+
+        # Step 5: Drop listings with score 0
+        if score > 0:
+            scored_listings.append((score, item))
+
+    # Step 6: Sort by score (highest first) and return listing dicts
+    scored_listings.sort(key=lambda x: x[0], reverse=True)
+    return [item for score, item in scored_listings]
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
