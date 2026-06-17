@@ -27,7 +27,7 @@ Searches the listings database for items matching the user's description, size, 
 A list of listing dictionaries sorted by relevance. Each dict contains: `id`, `title`, `description`, `category`, `style_tags`, `size`, `condition`, `price`, `colors`, `brand`, `platform`. Returns an empty list `[]` if no listings match the filters.
 
 **What happens if it fails or returns nothing:**
-Returns an empty list `[]`. The planning loop detects this and tells the user no listings matched, suggests adjusting criteria, and stops without calling suggest_outfit or create_fit_card.
+Returns an empty list `[]` (no error key). The planning loop detects this and tells the user no listings matched, suggests adjusting criteria, and stops without calling suggest_outfit or create_fit_card.
 
 ---
 
@@ -45,7 +45,7 @@ Takes a new thrifted item and the user's existing wardrobe, then suggests 1–2 
 A non-empty string with 1–2 outfit suggestions. Each suggestion pairs the new item with specific wardrobe pieces and includes styling tips. If the wardrobe is empty, returns general styling advice (from LLM training) for the item instead of specific wardrobe pairings.
 
 **What happens if it fails or returns nothing:**
-The tool is designed to handle empty wardrobe gracefully by returning general styling advice. Always returns a non-empty string. If the tool fails or returns empty (unexpected), the agent should treat this as an error and inform the user.
+The tool is designed to handle empty wardrobe gracefully by returning general styling advice. Always returns a non-empty string. If the LLM call fails or returns empty (unexpected), returns a dict with an `"error"` key: `{"error": "..."}`—the agent loop detects this and informs the user.
 
 ---
 
@@ -63,7 +63,7 @@ Generates a short, shareable social media caption (tweet/Instagram post style) f
 A 2–4 sentence string usable as a social media caption. Sounds casual and authentic (like a real OOTD post), mentions the item, price, and platform naturally, and captures the outfit vibe in specific terms. Outputs may vary (using higher LLM temperature for creativity).
 
 **What happens if it fails or returns nothing:**
-If outfit input is empty or missing, returns a descriptive error message string (not a Python exception). The agent detects this error string and informs the user that the fit card could not be generated.
+If outfit input is empty or missing, or if the LLM call fails, returns a dict with an `"error"` key: `{"error": "..."}`—not a string. The agent loop detects this error dict and informs the user that the fit card could not be generated.
 
 ---
 
@@ -86,7 +86,7 @@ A dict with three keys:
 ```
 
 **What happens if it fails or returns nothing:**
-If the LLM cannot parse the query or returns invalid data, the agent loop terminates and asks the user to clarify their request. The user must provide: what item they're looking for, desired size (if any), and maximum price (if any). No further tools are called until the user provides valid input. 
+If the LLM cannot parse the query or returns invalid data, returns a dict with an `"error"` key: `{"error": "Failed to parse query: ... Please clarify: what item are you looking for, what size (if any), and what's your max budget (if any)?"}`. The agent loop detects this error dict, stops, and asks the user to clarify. No further tools are called until the user provides valid input. 
 
 ---
 
@@ -96,31 +96,53 @@ If the LLM cannot parse the query or returns invalid data, the agent loop termin
 
 ---
 
+## Tool Error Handling Pattern
+
+**All tools use a consistent error-handling pattern:**
+- **On success**: Return the normal output (list, string, or dict with result keys)
+- **On failure**: Return a dict with an `"error"` key containing a descriptive error message
+
+This allows the agent loop to check a single condition (`if "error" in result`) to detect all failures, regardless of the tool.
+
+**Example:**
+```python
+# Success
+search_listings("vintage tee") → [{ "id": "lst_001", "title": "...", ... }, ...]
+suggest_outfit(item, wardrobe) → "Pair this with your jeans..."
+create_fit_card(outfit, item) → "thrifted this for $22..."
+
+# Failure (all tools)
+parse_query("xyz") → {"error": "Failed to parse query: ..."}
+suggest_outfit(item, None) → {"error": "LLM call failed: ..."}
+create_fit_card("", item) → {"error": "Outfit description is empty."}
+```
+
+---
+
 ## Planning Loop
 
 **How does your agent decide which tool to call next?**
 
-1. **Call parse_query** — Use the LLM to extract `description`, `size`, and `max_price` from the user's natural language input. If parsing fails or returns invalid data:
-   - Return error message asking user to clarify: "I couldn't understand your request. Please tell me: what item are you looking for, what size (if any), and what's your max budget (if any)?"
-   - Stop. Do not call search_listings or any other tools.
+All tools return either a success value or an error dict (see Tool Error Handling Pattern above). The agent loop checks each result after every tool call.
+
+1. **Call parse_query** — Use the LLM to extract `description`, `size`, and `max_price` from the user's natural language input.
+   - **If error** (`if "error" in result`): Return the error message to user and stop.
+   - **If success**: Continue to step 2 with parsed values.
 
 2. **Call search_listings** — Pass the parsed parameters to search for matching items.
+   - **If error** (`if "error" in result`): Return the error message to user and stop.
+   - **If empty list** (`if result == []`): Return "No listings matched your criteria. Try adjusting the price, size, or description." and stop.
+   - **If success**: Continue to step 3 with `selected_item = result[0]`.
 
-3. **Check search results** — If `results == []`:
-   - Return error message: "No listings matched your criteria. Try adjusting the price, size, or description."
-   - Stop. Do not call suggest_outfit or create_fit_card.
+3. **Call suggest_outfit** — Pass `selected_item` and user's `wardrobe` to get outfit suggestion.
+   - **If error** (`if "error" in result`): Return the error message to user and stop.
+   - **If success**: Continue to step 4 with outfit string.
 
-4. **Select top result** — If `results` is non-empty, select `selected_item = results[0]` and store in session.
+4. **Call create_fit_card** — Pass `outfit_suggestion` and `selected_item` to generate the social media caption.
+   - **If error** (`if "error" in result`): Return the error message to user and stop.
+   - **If success**: Continue to step 5.
 
-5. **Call suggest_outfit** — Pass `selected_item` and user's `wardrobe` to get outfit suggestion.
-
-6. **Check outfit suggestion** — If `outfit_suggestion` is empty or an error:
-   - Return error message to user.
-   - Stop. Do not call create_fit_card.
-
-7. **Call create_fit_card** — Pass `outfit_suggestion` and `selected_item` to generate the social media caption.
-
-8. **Return complete response** — Construct final output combining: item details, outfit suggestion, and fit card caption.
+5. **Return complete response** — Construct final output combining: item details, outfit suggestion, and fit card caption.
 
 ---
 
@@ -161,14 +183,16 @@ session = {
 
 ## Error Handling
 
-For each tool, describe the specific failure mode you're handling and what the agent does in response.
+For each tool, describe the specific failure mode and the error dict the tool returns.
 
-| Tool | Failure mode | Agent response |
-|------|-------------|----------------|
-| parse_query | Cannot parse query or returns invalid data | Ask user to clarify: what item, size, and max price. Stop and wait for clarification. |
-| search_listings | No results match the query | Tell user no listings matched. Suggest adjusting price, size, or description. Stop. |
-| suggest_outfit | Wardrobe is empty | Return general styling advice (tool handles this gracefully). |
-| create_fit_card | Outfit input is missing or incomplete | Return error message. Tell user fit card could not be generated. |
+The agent loop checks all results with: `if "error" in result` to detect failures uniformly.
+
+| Tool | Failure mode | Return value | Agent response |
+|------|-------------|---|----------------|
+| parse_query | Cannot parse query or invalid JSON response | `{"error": "Failed to parse query: ..."}` | Display error message; ask user to clarify item, size, price; stop and wait. |
+| search_listings | No results match the query | `[]` (empty list, no error key) | Display "No listings matched"; suggest adjusting filters; stop. |
+| suggest_outfit | LLM call fails or returns empty | `{"error": "..."}` | Display error message; stop without calling create_fit_card. |
+| create_fit_card | Outfit is empty, missing, or LLM fails | `{"error": "..."}` | Display error message; stop. |
 
 ---
 
