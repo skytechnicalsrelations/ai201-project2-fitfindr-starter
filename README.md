@@ -147,31 +147,78 @@ The session object ensures that intermediate results (parsed parameters, search 
 
 ## Interaction Walkthrough
 
-<!-- Walk through a complete interaction step by step: natural language query → each tool call (and why) → final fit card.
-     Walk through this carefully — it's how graders follow your agent's reasoning without a live demo.
-     Use a specific example — do not leave this as a template. -->
+**User query:** "Looking for a vintage graphic tee under $30, size M"
 
-**User query:**
+**Step 1 — Tool called: `parse_query`**
+- **Input:** `"Looking for a vintage graphic tee under $30, size M"`
+- **Why this tool:** Before searching listings, we need to extract structured parameters (what item, size constraint, price limit) from the user's natural language request. This allows flexible queries like "vintage graphic tee" and "size M" to be parsed consistently.
+- **Output:** 
+  ```json
+  {
+    "description": "vintage graphic tee",
+    "size": "M",
+    "max_price": 30.0
+  }
+  ```
 
-**Step 1 — Tool called:**
-- Tool:
-- Input:
-- Why this tool:
-- Output:
+**Step 2 — Tool called: `search_listings`**
+- **Input:** 
+  - `description="vintage graphic tee"`
+  - `size="M"`
+  - `max_price=30.0`
+- **Why this tool:** Now that we have structured parameters, we search the mock dataset for items matching these criteria. The search ranks results by keyword relevance (title, description, style_tags, colors) and filters by size and price.
+- **Output:** List of matching items, with the top match being:
+  ```json
+  {
+    "id": "lst_002",
+    "title": "Y2K Baby Tee — Butterfly Print",
+    "description": "Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.",
+    "category": "tops",
+    "style_tags": ["y2k", "vintage", "graphic tee", "cottagecore"],
+    "size": "S/M",
+    "condition": "excellent",
+    "price": 18.00,
+    "colors": ["white", "pink", "purple"],
+    "brand": null,
+    "platform": "depop"
+  }
+  ```
+  (Plus 2-3 other relevant results ranked below this top match.)
 
-**Step 2 — Tool called:**
-- Tool:
-- Input:
-- Why this tool:
-- Output:
+**Step 3 — Tool called: `suggest_outfit`**
+- **Input:**
+  - `new_item`: The Y2K Baby Tee listing (from Step 2's top result)
+  - `wardrobe`: User's wardrobe dict (e.g., example wardrobe with 10 items including vintage cardigans, distressed jeans, platform boots)
+- **Why this tool:** With a specific item in hand, we ask the stylist to suggest 1–2 complete outfits pairing this tee with pieces from the user's existing wardrobe. This ensures the suggestion is personalized and practical.
+- **Output:**
+  ```
+  Outfit 1: Pair this adorable Y2K baby tee with your black distressed jeans and white platform sneakers for a casual, nostalgic vibe. Layer it under your oversized cream cardigan for cooler days — the soft textures will complement the delicate butterfly print. Add a silver chain necklace and a mini crossbody bag for a subtle Y2K touch.
 
-**Step 3 — Tool called:**
-- Tool:
-- Input:
-- Why this tool:
-- Output:
+  Outfit 2: Go full cottage-core by pairing the tee with your sage green midi skirt and ankle boots. The butterfly graphic works beautifully with earthy, romantic aesthetics. Throw on your cropped denim jacket and you've got an effortlessly cute brunch-ready outfit.
+  ```
+
+**Step 4 — Tool called: `create_fit_card`**
+- **Input:**
+  - `outfit`: The outfit suggestion string from Step 3
+  - `new_item`: The Y2K Baby Tee listing
+- **Why this tool:** Now we generate a snappy, shareable social media caption that brings the outfit to life. The caption mentions the item, price, and platform naturally, and captures the outfit's vibe in a way that would appeal to TikTok or Instagram viewers.
+- **Output:**
+  ```
+  just copped this adorable vintage butterfly baby tee from depop for $18 and i'm obsessed 🦋 the y2k nostalgia is unreal. paired it with my black distressed jeans and cream cardigan for the coziest vibe — it's giving cottagecore meets early 2000s and i'm here for it.
+  ```
 
 **Final output to user:**
+```
+Found: Y2K Baby Tee — Butterfly Print ($18 on Depop)
+
+Outfit suggestions:
+Outfit 1: Pair this adorable Y2K baby tee with your black distressed jeans and white platform sneakers for a casual, nostalgic vibe. Layer it under your oversized cream cardigan for cooler days — the soft textures will complement the delicate butterfly print. Add a silver chain necklace and a mini crossbody bag for a subtle Y2K touch.
+
+Outfit 2: Go full cottage-core by pairing the tee with your sage green midi skirt and ankle boots. The butterfly graphic works beautifully with earthy, romantic aesthetics. Throw on your cropped denim jacket and you've got an effortlessly cute brunch-ready outfit.
+
+Fit Card Caption:
+just copped this adorable vintage butterfly baby tee from depop for $18 and i'm obsessed 🦋 the y2k nostalgia is unreal. paired it with my black distressed jeans and cream cardigan for the coziest vibe — it's giving cottagecore meets early 2000s and i'm here for it.
+```
 
 
 ## Error Handling and Fail Points
@@ -189,11 +236,13 @@ Every tool is designed to handle its failure mode gracefully—no silent failure
 
 ## Spec Reflection
 
-<!-- Answer both questions with at least 2–3 sentences each. -->
-
 **One way planning.md helped during implementation:**
 
+The detailed **Planning Loop** section (steps 1–5) was invaluable during implementation because it provided a clear, sequential checklist for the agent logic. Rather than reasoning about branching conditionals or unclear error propagation, I could follow the exact steps in planning.md: parse → check for error → search → check for empty or error → suggest outfit → check for error → create fit card → check for error → return. This linear structure meant that implementing `run_agent()` was straightforward—each tool call had a predictable outcome and a clear next step. Additionally, the **State Management** section's session dict blueprint ensured that I didn't miss any intermediate result that needed to flow between tools; I could literally copy the field names from planning.md into the session initialization and use them throughout the loop.
+
 **One divergence from your spec, and why:**
+
+The specification initially described three required tools (search_listings, suggest_outfit, create_fit_card), but during planning I added a fourth tool—`parse_query()`—as the first step in the loop. This divergence was necessary because the original specification assumed the agent would receive already-structured input (description, size, max_price), but user experience demanded that the agent accept natural language queries like "Looking for a vintage graphic tee under $30, size M." Rather than ask users to pre-format their requests, `parse_query()` extracts those parameters automatically using the LLM. This divergence improves usability significantly: users can now provide free-form queries, and the agent handles parsing transparently. The trade-off is one additional LLM call per interaction, but the gain in ease of use justifies it.
 
 ---
 
