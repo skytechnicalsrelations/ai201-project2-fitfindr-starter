@@ -1,7 +1,7 @@
 """
 agent.py
 
-The FitFindr planning loop. Orchestrates the three tools in response to a
+The FitFindr planning loop. Orchestrates the four tools in response to a
 natural language user query, passing state between them via a session dict.
 
 Complete tools.py and test each tool in isolation before implementing this file.
@@ -19,6 +19,130 @@ Usage (once implemented):
 """
 
 from tools import create_fit_card, parse_query, search_listings, suggest_outfit
+
+# ── tool definitions ─────────────────────────────────────────────────────────────
+
+TOOL_DEFINITIONS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "parse_query",
+            "description": (
+                "Extract structured search parameters (description, size, max_price) "
+                "from the user's natural language query using the LLM. "
+                "Returns a dict with keys: description (str), size (str or None), max_price (float or None). "
+                "On failure, returns {'error': '...'}"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_query": {
+                        "type": "string",
+                        "description": "The user's full natural language request (e.g., 'vintage graphic tee under $30, size M')",
+                    }
+                },
+                "required": ["user_query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_listings",
+            "description": (
+                "Search the listings database for items matching the user's criteria. "
+                "Filters by description (keyword match), size (exact or None for all), and max_price. "
+                "Returns a sorted list of matching listing dicts, or [] if no matches. "
+                "Each listing dict contains: id, title, description, category, style_tags, size, condition, price, colors, brand, platform."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "The item type/style to search for (e.g., 'vintage graphic tee')",
+                    },
+                    "size": {
+                        "type": ["string", "null"],
+                        "description": "Desired size (e.g., 'M', 'L') or None to search all sizes",
+                    },
+                    "max_price": {
+                        "type": "number",
+                        "description": "Maximum price in dollars; only return items at or below this price",
+                    },
+                },
+                "required": ["description", "size", "max_price"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "suggest_outfit",
+            "description": (
+                "Generate 1-2 outfit suggestions by pairing a thrifted item with wardrobe pieces. "
+                "Takes a new item listing and user's wardrobe dict. "
+                "Returns a string with outfit suggestions. If wardrobe is empty, returns general styling advice. "
+                "On failure, returns {'error': '...'}"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "new_item": {
+                        "type": "object",
+                        "description": "A listing dict from search_listings with fields: title, style_tags, colors, brand, condition, price, etc.",
+                    },
+                    "wardrobe": {
+                        "type": "object",
+                        "description": "User's wardrobe dict with an 'items' key containing a list of wardrobe item dicts",
+                    },
+                },
+                "required": ["new_item", "wardrobe"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_fit_card",
+            "description": (
+                "Generate a short, casual social media caption (tweet/Instagram post style) for the outfit. "
+                "Takes outfit suggestion text and the new item listing. "
+                "Returns a 2-4 sentence caption string mentioning item name, price, and platform naturally. "
+                "On failure (empty outfit input or LLM failure), returns {'error': '...'}"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "outfit": {
+                        "type": "string",
+                        "description": "The outfit suggestion string from suggest_outfit describing how to style the item",
+                    },
+                    "new_item": {
+                        "type": "object",
+                        "description": "A listing dict from search_listings with fields: title, price, platform, condition, etc.",
+                    },
+                },
+                "required": ["outfit", "new_item"],
+            },
+        },
+    },
+]
+
+# ── system prompt ────────────────────────────────────────────────────────────────
+
+SYSTEM_PROMPT = (
+    "You are a skilled thrifted fashion advisor and styling expert. "
+    "Help users find unique thrifted items and create complete outfit suggestions "
+    "by using your available tools to search listings and generate personalized styling advice.\n\n"
+    "Always use your tools to search for actual thrifted items and generate outfit suggestions — "
+    "don't rely on general fashion knowledge alone. Use parse_query to understand what the user "
+    "is looking for, search_listings to find real options, and suggest_outfit to create specific "
+    "styling advice based on their wardrobe.\n\n"
+    "Keep your advice practical, specific, and grounded in the actual items found. "
+    "If no listings match their criteria, suggest adjusting the search filters (price, size, description). "
+    "Celebrate thrift finds and help users build creative, sustainable outfits that reflect their personal style."
+)
 
 # ── session state ─────────────────────────────────────────────────────────────
 
