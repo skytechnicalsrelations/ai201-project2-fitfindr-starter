@@ -62,7 +62,7 @@ def parse_query(user_query: str) -> dict:
     client = _get_groq_client()
 
     prompt = f"""Extract the following information from the user's query:
-1. description: What item or style are they looking for? (e.g., "vintage graphic tee")
+1. description: Short concise sets of keywords of what item or style are they looking for? (e.g., "vintage graphic tee")
 2. size: What size if specified? (e.g., "M", "L", "US 8", or None if not mentioned)
 3. max_price: What's the maximum price if specified? (e.g., 30.0, 50.0, or None if not mentioned)
 
