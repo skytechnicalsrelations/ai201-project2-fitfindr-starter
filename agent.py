@@ -18,6 +18,8 @@ Usage (once implemented):
     print(result["error"])   # None on success
 """
 
+import json
+
 from tools import create_fit_card, parse_query, search_listings, suggest_outfit
 
 # ── tool definitions ─────────────────────────────────────────────────────────────
@@ -143,6 +145,43 @@ SYSTEM_PROMPT = (
     "If no listings match their criteria, suggest adjusting the search filters (price, size, description). "
     "Celebrate thrift finds and help users build creative, sustainable outfits that reflect their personal style."
 )
+
+# ── tool dispatch ────────────────────────────────────────────────────────────────
+
+
+def dispatch_tool(tool_name: str, tool_args: dict) -> str:
+    """Route a tool call to the correct function and return the result as a JSON string."""
+    # Some models send arguments as JSON "null" for no-argument tools, which
+    # json.loads() turns into None — normalize so .get() below is always safe.
+    if not isinstance(tool_args, dict):
+        tool_args = {}
+    print(f"  → Tool call: {tool_name}({tool_args})")
+
+    if tool_name == "parse_query":
+        result = parse_query(tool_args["user_query"])
+    elif tool_name == "search_listings":
+        result = search_listings(
+            description=tool_args["description"],
+            size=tool_args.get("size"),
+            max_price=tool_args["max_price"],
+        )
+    elif tool_name == "suggest_outfit":
+        result = suggest_outfit(
+            new_item=tool_args["new_item"],
+            wardrobe=tool_args["wardrobe"],
+        )
+    elif tool_name == "create_fit_card":
+        result = create_fit_card(
+            outfit=tool_args["outfit"],
+            new_item=tool_args["new_item"],
+        )
+    else:
+        result = {"error": f"Unknown tool: {tool_name}"}
+
+    print(
+        f"  ← Result: {json.dumps(result)[:120]}{'...' if len(json.dumps(result)) > 120 else ''}"
+    )
+    return json.dumps(result)
 
 # ── session state ─────────────────────────────────────────────────────────────
 
