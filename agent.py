@@ -67,30 +67,40 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         Step 1: Initialize the session with _new_session().
 
-        Step 2: Parse the user's query to extract a description, size, and
-                max_price. You can use regex, string splitting, or ask the LLM
-                to parse it — document your choice in planning.md.
+        Step 2: Call parse_query() to extract description, size, and max_price
+                from the user's natural language query.
                 Store the result in session["parsed"].
+                **ERROR CHECK:** If "error" in session["parsed"], set
+                session["error"] and return early.
 
         Step 3: Call search_listings() with the parsed parameters.
                 Store results in session["search_results"].
-                If no results: set session["error"] to a helpful message and
-                return the session early. Do NOT proceed to suggest_outfit
-                with empty input.
+                **ERROR CHECK:** If "error" in session["search_results"], set
+                session["error"] and return early.
+                **EMPTY CHECK:** If session["search_results"] == [], set
+                session["error"] to a helpful message ("No listings matched...")
+                and return early. Do NOT proceed to suggest_outfit with empty input.
 
-        Step 4: Select the item to use (e.g., the top result).
-                Store it in session["selected_item"].
+        Step 4: Select the top item from search_results.
+                Store it in session["selected_item"] = session["search_results"][0].
 
-        Step 5: Call suggest_outfit() with the selected item and wardrobe.
+        Step 5: Call suggest_outfit() with selected_item and wardrobe.
                 Store the result in session["outfit_suggestion"].
+                **ERROR CHECK:** If "error" in session["outfit_suggestion"], set
+                session["error"] and return early.
 
-        Step 6: Call create_fit_card() with the outfit suggestion and selected item.
+        Step 6: Call create_fit_card() with outfit_suggestion and selected_item.
                 Store the result in session["fit_card"].
+                **ERROR CHECK:** If "error" in session["fit_card"], set
+                session["error"] and return early.
 
-        Step 7: Return the session.
+        Step 7: Return the session (session["error"] will be None on success).
 
-    Before writing code, complete the Planning Loop and State Management sections
-    of planning.md — your implementation should match what you described there.
+    Implementation notes:
+    - All tools follow the error dict pattern: return {"error": "..."} on failure
+    - Check errors uniformly with: if "error" in result
+    - Use parse_query() from tools.py (not regex/string splitting)
+    - See the error handling table in planning.md for all failure modes
     """
     # TODO: implement the planning loop
     session = _new_session(query, wardrobe)

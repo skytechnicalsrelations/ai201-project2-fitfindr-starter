@@ -217,53 +217,59 @@ The agent loop checks all results with: `if "error" in result` to detect failure
                     │ parsed =           │ • parsed         │
                     │ {desc,size,price}  │ • search_results │
                     │                    │ • selected_item  │
-            ┌───────┴─────────┐          │ • outfit_sugges. │
-            │                 │          │ • fit_card       │
-     [Parse fails]      [Parse OK]       │ • error          │
+            ┌───────┴──────────┐         │ • outfit_sugges. │
+            │                  │         │ • fit_card       │
+     [Error]        [Success]           │ • error          │
        │                  │              └──────────────────┘
-       │                  │                       ▲
-       ▼                  ▼                       │
-    Error msg       search_listings()            │
-     Return │         (tools.py)                 │ stores
-            │              │                     │ results
-            │              ▼                     │
-            │        results = [...]             │
-            │              │                     │
-            │         ┌─────┴─────┐              │
-            │         │           │              │
-            │    [Empty]      [Items found]      │
-            │      │               │             │
-            │      ▼               ▼             │
-            │   Error msg    selected_item = ───┼─ results[0]
-            │   Return │         │               │
-            │          │         │               │
-            │          │         ▼               │
-            │          │    suggest_outfit() ────┼─ (selected_item, wardrobe)
-            │          │         │               │
-            │          │         ▼               │
-            │          │    outfit_suggestion ──┼─ (string)
-            │          │         │               │
-            │          │         ▼               │
-            │          │    create_fit_card() ──┼─ (outfit, selected_item)
-            │          │         │               │
-            │          │         ▼               │
-            │          │    fit_card (string) ──┼─ (string)
-            │          │         │               │
-            └──────────┴─────────┤               │
-                        │        │               │
-                        ▼        ▼               │
-                   ┌─────────────────┐           │
-                   │ Format Response │◄──────────┘
-                   │ (error or full  │
-                   │ outfit details) │
-                   └─────────────────┘
-                        │
-                        ▼
-                   Return to User
-                   • Item details
-                   • Outfit suggestion
-                   • Social caption
-                   (OR error message)
+       │                  ▼                       ▲
+       │          search_listings()               │ stores
+       │          (tools.py)                      │ results
+       │                  │                       │
+       │                  ▼                       │
+       │          results = [...]                 │
+       │                  │                       │
+       │         ┌────────┴────────┐              │
+       │         │                 │              │
+       │    [Empty]          [Items found]        │
+       │      │                    │              │
+       │      │                    ▼              │
+       │      │            selected_item = ──────┼─ results[0]
+       │      │                    │              │
+       │      │                    ▼              │
+       │      │         suggest_outfit() ────────┼─ (selected_item, wardrobe)
+       │      │                    │              │
+       │      │          ┌─────────┴─────────┐    │
+       │      │          │                   │    │
+       │      │     [Error]           [Success]   │
+       │      │        │                   │      │
+       │      │        │                   ▼      │
+       │      │        │         outfit_suggestion┤─
+       │      │        │                   │      │
+       │      │        │                   ▼      │
+       │      │        │       create_fit_card()─┼─ (outfit, selected_item)
+       │      │        │                   │      │
+       │      │        │          ┌────────┴──┐   │
+       │      │        │          │           │   │
+       │      │        │     [Error]    [Success]│
+       │      │        │          │           │   │
+       │      │        │          │           ▼   │
+       │      │        │          │    fit_card ──┼─
+       │      │        │          │           │   │
+       └──────┴────────┴──────────┴───────────┤   │
+                             │                │   │
+                             ▼                ▼   │
+                        ┌─────────────────┐       │
+                        │ Format Response │◄──────┘
+                        │ (error or full  │
+                        │ outfit details) │
+                        └─────────────────┘
+                             │
+                             ▼
+                        Return to User
+                        • Item details (success only)
+                        • Outfit suggestion (success only)
+                        • Social caption (success only)
+                        • Error message (failure only)
 ```
 
 **Data flow:**
